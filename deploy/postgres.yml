@@ -1,0 +1,58 @@
+
+---
+- name: PostgreSQL
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - group_vars/all/vault.yml
+
+  tasks:
+    - name: Create volume
+      community.docker.docker_volume:
+        name: audit_pg_data
+
+    - name: Create network
+      community.docker.docker_network:
+        name: audit_net
+
+    - name: Start PostgreSQL
+      community.docker.docker_container:
+        name: audit-postgres
+        image: postgres:17
+        state: started
+        restart_policy: unless-stopped
+        volumes:
+          - audit_pg_data:/var/lib/postgresql/data
+        networks:
+          - name: audit_net
+        # Доступ к БД только с нашего компьютера, не из внешней сети
+        published_ports:
+          - "127.0.0.1:55432:5432"
+        env:
+          POSTGRES_PASSWORD: "{{ vault_postgres_password }}"
+      no_log: true
+
+    # Создаём пользователя или обновляем его пароль, если он изменился
+    - name: Create audit user
+      community.postgresql.postgresql_user:
+        name: audit_svc
+        password: "{{ vault_audit_password }}"
+        login_host: 127.0.0.1
+        login_port: 55432
+        login_user: postgres
+        login_password: "{{ vault_postgres_password }}"
+        state: present
+      no_log: true
+
+    - name: Create database
+      community.postgresql.postgresql_db:
+        name: audit
+        owner: audit_svc
+        login_host: 127.0.0.1
+        login_port: 55432
+        login_user: postgres
+        login_password: "{{ vault_postgres_password }}"
+        state: present
+      no_log: true

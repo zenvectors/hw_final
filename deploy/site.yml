@@ -1,0 +1,4 @@
+---
+# обновляем базу, потом настройки приложения
+- import_playbook: postgres.yml
+- import_playbook: app.yml

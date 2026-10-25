@@ -1,0 +1,51 @@
+
+---
+- name: Deploy audit-svc
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - group_vars/all/vault.yml
+
+  tasks:
+    # папку для настроек приложения
+    - name: Create config directory
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/runtime"
+        state: directory
+        mode: "0700"
+
+    # подставляем пароль из Vault
+    - name: Create config
+      ansible.builtin.template:
+        src: templates/config.yaml.j2
+        dest: "{{ playbook_dir }}/runtime/config.yaml"
+        mode: "0640"
+      no_log: true
+      notify: Reload audit-svc
+
+    # запускаем приложение в одной сети с PostgreSQL
+    - name: Start audit-svc
+      community.docker.docker_container:
+        name: audit-svc
+        image: "{{ audit_image | default('audit-svc:test') }}"
+        pull: "{{ 'always' if audit_image is defined else 'missing' }}"
+        state: started
+        restart_policy: unless-stopped
+        networks:
+          - name: audit_net
+        # чтобы контейнер видел обновлённый config.yaml
+        volumes:
+        - "{{ playbook_dir }}/runtime:/etc/audit-svc:ro"  
+
+  handlers:
+    # конфиг без перезапуска контейнера
+    - name: Reload audit-svc
+      community.docker.docker_container_exec:
+        container: audit-svc
+        command: >-
+          python -c "import urllib.request;
+          r = urllib.request.urlopen(
+          urllib.request.Request('http://127.0.0.1:8080/reload', method='POST'));
+          print(r.status, r.read().decode())"
