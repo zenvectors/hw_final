@@ -5,6 +5,7 @@ on:
 # отправляет собранный образ
   push:
     branches: [main]
+    tags: ['v*']
 # утсановка, заупск тестов
 jobs:
   test:
@@ -55,9 +56,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 7 символов коммита используем для тега образа
+      # yfpdfybt gj ntue bkb rjvvbne
       - name: Set image tag
-        run: echo "IMAGE_TAG=main_${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            echo "IMAGE_TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+          else
+            echo "IMAGE_TAG=main_${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          fi
 
       - name: Build and publish image
         run: |
