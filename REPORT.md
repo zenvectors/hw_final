@@ -62,11 +62,12 @@
 - пароли PostgreSQL хранятся в vault.yml, зашифрованном с помощью Ansible Vault:
 ![alt text](images/image-24.png)
 
-
+- создали релиз v1.0.0. GitHub Actions запустил тесты, собрал и опубликовал образ:
+![alt text](images/image-28.png)
 
 4	Ключ ansible-vault в CI:  хранится в CI-переменной (Masked + Protected) или секрете окружения GitHub. Ansible получает его через --vault-password-file
 
-- оздали окружение deploy на GitHub и добавили секрет ANSIBLE_VAULT_PASSWORD, в пайплайне предусмотрели передачу пароля Ansible через --vault-password-file
+- создали окружение deploy на GitHub и добавили секрет ANSIBLE_VAULT_PASSWORD, в пайплайне предусмотрели передачу пароля Ansible через --vault-password-file
 ![alt text](images/image-26.png)
 
 - 
@@ -78,9 +79,16 @@
 - настроили self-hosted runner wsl-deploy с меткой deploy, он подключается к GitHub и может запускать задачи на нашей WSL, добавили задачу deploy в GitHub Actions: она должна выполняться после публикации релизного образа:
 ![alt text](images/image-27.png)
 
--
+- развертывание запускается на self-hosted runner wsl-deploy после успешной публикации релизного образа, проверили на релизе v1.0.0:
+![alt text](images/image-29.png)
 
--
+- развертывание прошло успешно
+![alt text](images/image-30.png)
+
+- проверили, сто после развертывания контейнер исопльзует образ:
+![alt text](images/image-31.png)
+
+
 
 2	Конфиг из шаблона: config.yaml сервиса генерируется модулем template из зашифрованных переменных. Права файла не шире 0640, но процесс в контейнере должен его читать
 
