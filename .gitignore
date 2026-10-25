@@ -19,3 +19,4 @@ server.tar.gz
 
 # Локальные переменные окружения
 .env
+deploy/runtime/
