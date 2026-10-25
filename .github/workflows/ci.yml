@@ -1,0 +1,65 @@
+
+name: CI
+# запускаем при отправке изменений
+on:
+# отправляет собранный образ
+  push:
+    branches: [main]
+# утсановка, заупск тестов
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry and dependencies
+        run: |
+          pip install poetry
+          poetry install
+
+      - name: Run tests
+      # сохраняем результаты
+        run: poetry run pytest --junitxml=report.xml
+
+      - name: Save test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-report
+          path: report.xml
+
+  build:
+  # только после успешных тестов
+    needs: test
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Get code
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 7 символов коммита используем для тега образа
+      - name: Set image tag
+        run: echo "IMAGE_TAG=main_${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Build and publish image
+        run: |
+          docker build -t ghcr.io/zenvectors/audit-svc:$IMAGE_TAG .
+          docker push ghcr.io/zenvectors/audit-svc:$IMAGE_TAG
