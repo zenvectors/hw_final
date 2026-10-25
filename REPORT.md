@@ -30,8 +30,8 @@
 
 3	Пайплайн на защищённом теге: на теге vX.Y.Z публикуется образ с тегом vX.Y.Z, затем запускается развёртывание 
 
-- добавили запуск по релизным тегам
-- 
+- создали релиз v1.0.0, GitHub Actions запустил тесты, собрал и опубликовал образ:
+![alt text](images/image-28.png)
 
 
 ##### Задание 2. База данных и секреты
@@ -58,19 +58,15 @@
 
 3	Секреты: пароль суперпользователя и пароль audit_svc лежат в group_vars/.../vault.yml, зашифрованном ansible-vault. В открытом виде их нет ни в репозитории, ни в логах CI
 
-
 - пароли PostgreSQL хранятся в vault.yml, зашифрованном с помощью Ansible Vault:
 ![alt text](images/image-24.png)
 
-- создали релиз v1.0.0. GitHub Actions запустил тесты, собрал и опубликовал образ:
-![alt text](images/image-28.png)
-
 4	Ключ ansible-vault в CI:  хранится в CI-переменной (Masked + Protected) или секрете окружения GitHub. Ansible получает его через --vault-password-file
 
-- создали окружение deploy на GitHub и добавили секрет ANSIBLE_VAULT_PASSWORD, в пайплайне предусмотрели передачу пароля Ansible через --vault-password-file
+- создали окружение deploy на GitHub и добавили секрет ANSIBLE_VAULT_PASSWORD
 ![alt text](images/image-26.png)
 
-- 
+- при развёртывании Ansible получает получает пароль через --vault-password-file, проверили на релизе v1.0.0 (задание 3.1)
 
 ##### Задание 3. Развёртывание из CI
 
@@ -88,19 +84,16 @@
 - проверили, сто после развертывания контейнер исопльзует образ:
 ![alt text](images/image-31.png)
 
-
-
 2	Конфиг из шаблона: config.yaml сервиса генерируется модулем template из зашифрованных переменных. Права файла не шире 0640, но процесс в контейнере должен его читать
 
-- создали config.yaml.j2, Ansible подставляет в него пароль из Vault и сохраняет готовый config.yaml с правами 640
+- создали config.yaml.j2 (Ansible подставляет в него пароль из Vault и сохраняет готовый config.yaml с правами 640)
 
-- Проверили, что audit-svc читает конфиг, подклбчается к PostgreSQL, статус ок - приложение успешно подключилось
+- проверили, что audit-svc читает конфиг, подклбчается к PostgreSQL, статус ок - приложение успешно подключилось
 ![alt text](images/image-17.png)
 
 - проверяем права доступа к config.yaml - 640 (владелец может читать и изменять файл, группа только читать, остальные пользователи не имеют доступа)
 
 ![alt text](images/image-25.png)
-
 
 3	Перечитывание вместо перезапуска: при изменении конфига хендлер вызывает POST /reload, а контейнер сервиса не перезапускается. Это аналог опции command у Vault Agent	
 
@@ -116,7 +109,6 @@
 
 4	Идемпотентность: повторный запуск задачи без изменений: changed=0, хендлер не срабатывает
 
-
 - объединили настройку PostgreSQL и приложения в site.yml:
 ![alt text](images/image-19.png)
 
@@ -124,13 +116,27 @@
 
 1	Доступ только через Nginx: из всех контейнеров развёртывания порт наружу публикует только Nginx (и exporter, см. п. 3). Сервис и PostgreSQL в отдельной docker-сети без ports
 
+- добавили Nginx в Ansible-развёртывание:
+![alt text](images/image-32.png)
+![alt text](images/image-33.png)
+
+- проверили доступ к приложению через Nginx:
+![alt text](images/image-34.png)
+
 2	/reload закрыт: запрос к /reload через Nginx возвращает 404 и не доходит до сервиса
+
+- закрыли доступ к /reload через Nginx
+![alt text](images/image-35.png)
 
 3	nginx-exporter: контейнер nginx/nginx-prometheus-exporter:1.4 читает stub_status Nginx (инструкция); stub_status недоступен на основном порту; на :9113/metrics есть nginx_up 1
 
+- добавили nginx-exporter через Ansible (получает статистику Nginx через stub_status и отдаёт метрики на порту 9113), проверили
+![alt text](images/image-36.png)
 
+- проверили, что stub_status недоступен через основной порт Nginx:
+![alt text](images/image-37.png)
 
-##### Задание 5. Мониторинг (2 балла)
+##### Задание 5. Мониторинг
 
 1	Сбор метрик: задания audit-svc и nginx в prometheus.yml, обе цели UP на /targets
 

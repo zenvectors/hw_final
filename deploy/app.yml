@@ -38,6 +38,32 @@
         # чтобы контейнер видел обновлённый config.yaml
         volumes:
         - "{{ playbook_dir }}/runtime:/etc/audit-svc:ro"  
+    
+    - name: Start nginx
+      community.docker.docker_container:
+        name: audit-nginx
+        image: nginx:stable-alpine
+        state: started
+        restart_policy: unless-stopped
+        networks:
+          - name: audit_net
+        published_ports:
+          - "127.0.0.1:8088:8080"
+        volumes:
+          - "{{ playbook_dir }}/nginx.conf:/etc/nginx/conf.d/default.conf:ro"
+    
+    - name: Start nginx exporter
+      community.docker.docker_container:
+        name: nginx-exporter
+        image: nginx/nginx-prometheus-exporter:1.4
+        state: started
+        restart_policy: unless-stopped
+        networks:
+          - name: audit_net
+        command:
+          - "--nginx.scrape-uri=http://audit-nginx:8081/stub_status"
+        published_ports:
+          - "127.0.0.1:9113:9113"
 
   handlers:
     # конфиг без перезапуска контейнера
